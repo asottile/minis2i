@@ -49,8 +49,8 @@ def main(argv=None):
         ret = subprocess.call((
             'docker', 'run', '-ti' if sys.stdin.isatty() else '-t',
             '--cidfile', cidfile,
-            '--volume', f'{artifact_dir}:/tmp/artifacts',
-            '--volume', f'{os.path.abspath(args.src)}:/tmp/src',
+            '--volume', f'{artifact_dir}:/tmp/artifacts:ro',
+            '--volume', f'{os.path.abspath(args.src)}:/tmp/src:ro',
             '--entrypoint', '/usr/local/s2i/assemble',
             args.builder_img,
         ))
