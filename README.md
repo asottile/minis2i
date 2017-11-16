@@ -22,6 +22,7 @@ exec s2i build \
 - It assumes `io.openshift.s2i.scripts-url=image:///usr/local/s2i`.
 - It does not support s2i `run` `CMD` instead inheriting the `CMD` from the
   builder image.
+- `/tmp/src` and `/tmp/artifacts` are mounted readonly (can't `rm` them)
 - `minis2i` does not include any messaging.
 
 ### dependencies
