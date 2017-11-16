@@ -18,7 +18,7 @@ def main(argv=None):
     parser.add_argument('src')
     parser.add_argument('builder_img')
     parser.add_argument('tag')
-    args = parser.parse_args(argv)
+    args, rest = parser.parse_known_args(argv)
 
     image_name_without_tag, _, _ = args.tag.partition(':')
     previous = previous_image_id(image_name_without_tag)
@@ -47,7 +47,7 @@ def main(argv=None):
 
         cidfile = os.path.join(tmpdir, 'cidfile')
         ret = subprocess.call((
-            'docker', 'run', '-ti' if sys.stdin.isatty() else '-t',
+            'docker', 'run', *rest, '-ti' if sys.stdin.isatty() else '-t',
             '--cidfile', cidfile,
             '--volume', f'{artifact_dir}:/tmp/artifacts:ro',
             '--volume', f'{os.path.abspath(args.src)}:/tmp/src:ro',

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
+echo "${VAR-missing}"
 if [ -e /tmp/artifacts/output.txt ]; then
     cp /tmp/artifacts/output.txt .
 else
