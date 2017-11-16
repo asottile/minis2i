@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+if [ -e /tmp/artifacts/output.txt ]; then
+    cp /tmp/artifacts/output.txt .
+else
+    cp /tmp/src/input.txt output.txt
+fi

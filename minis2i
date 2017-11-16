@@ -1,0 +1,78 @@
+#!/usr/bin/env python3.6
+import argparse
+import json
+import os.path
+import subprocess
+import sys
+import tempfile
+
+
+def previous_image_id(image_name):
+    cmd = ('docker', 'images', '--format={{.ID}}', image_name)
+    for line in subprocess.check_output(cmd).decode().splitlines():
+        return line
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('src')
+    parser.add_argument('builder_img')
+    parser.add_argument('tag')
+    args = parser.parse_args(argv)
+
+    image_name_without_tag, _, _ = args.tag.partition(':')
+    previous = previous_image_id(image_name_without_tag)
+
+    cmd = ('docker', 'inspect', args.builder_img, '--format={{json .Config}}')
+    image_cfg = json.loads(subprocess.check_output(cmd))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        artifact_dir = os.path.join(tmpdir, 'artifacts')
+        os.mkdir(artifact_dir)
+
+        if previous:
+            save_artifacts = subprocess.Popen(
+                (
+                    'docker', 'run', '--rm',
+                    '--entrypoint', '/usr/local/s2i/save-artifacts',
+                    previous,
+                ),
+                stdout=subprocess.PIPE,
+            )
+            untar = subprocess.Popen(
+                ('tar', 'xf', '-'),
+                stdin=save_artifacts.stdout, cwd=artifact_dir,
+            )
+            untar.communicate()
+
+        cidfile = os.path.join(tmpdir, 'cidfile')
+        ret = subprocess.call((
+            'docker', 'run', '-ti' if sys.stdin.isatty() else '-t',
+            '--cidfile', cidfile,
+            '--volume', f'{artifact_dir}:/tmp/artifacts',
+            '--volume', f'{os.path.abspath(args.src)}:/tmp/src',
+            '--entrypoint', '/usr/local/s2i/assemble',
+            args.builder_img,
+        ))
+        try:
+            if not ret:
+                with open(cidfile) as f:
+                    cid = f.read().strip()
+                entrypoint = json.dumps(image_cfg['Entrypoint'] or [])
+                cmd = json.dumps(image_cfg['Cmd'] or [])
+                subprocess.check_call((
+                    'docker', 'commit',
+                    '--change', f'ENTRYPOINT {entrypoint}',
+                    '--change', f'CMD {cmd}',
+                    cid, args.tag,
+                ))
+        finally:
+            if os.path.exists(cidfile):
+                with open(cidfile) as f:
+                    cid = f.read().strip()
+                subprocess.check_call(('docker', 'rm', cid))
+        return ret
+
+
+if __name__ == '__main__':
+    exit(main())
