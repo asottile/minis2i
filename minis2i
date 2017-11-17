@@ -2,6 +2,7 @@
 import argparse
 import json
 import os.path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,21 +30,15 @@ def main(argv=None):
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_dir = os.path.join(tmpdir, 'artifacts')
         os.mkdir(artifact_dir)
+        os.chmod(artifact_dir, 0o777 | stat.S_ISVTX)
 
         if previous:
-            save_artifacts = subprocess.Popen(
-                (
-                    'docker', 'run', '--rm',
-                    '--entrypoint', '/usr/local/s2i/save-artifacts',
-                    previous,
-                ),
-                stdout=subprocess.PIPE,
-            )
-            untar = subprocess.Popen(
-                ('tar', 'xf', '-'),
-                stdin=save_artifacts.stdout, cwd=artifact_dir,
-            )
-            untar.communicate()
+            subprocess.call((
+                'docker', 'run', '--rm',
+                '--volume', f'{artifact_dir}:/tmp/artifacts:rw',
+                '--entrypoint', '/usr/local/s2i/save-artifacts',
+                previous,
+            ))
 
         cidfile = os.path.join(tmpdir, 'cidfile')
         ret = subprocess.call((

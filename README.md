@@ -22,13 +22,14 @@ exec s2i build \
 - It assumes `io.openshift.s2i.scripts-url=image:///usr/local/s2i`.
 - It does not support s2i `run` `CMD` instead inheriting the `CMD` from the
   builder image.
+- `minis2i` opts for `/tmp/artifacts` to be a rw volume to save / retrieve
+  artifacts from (instead of using `tar` over stdout).
 - `/tmp/src` and `/tmp/artifacts` are mounted readonly (can't `rm` them)
 - `minis2i` does not include any messaging.
 
 ### dependencies
 
 - `docker`
-- `tar` (used for speed over `tarfile` module)
 - `python3.6`
 
 ### example
@@ -39,25 +40,29 @@ copies an input file `input.txt` to `output.txt`.
 ```bash
 docker build -t builder ./builder --quiet
 docker rmi testapp-img >& /dev/null  # ensure non-incremental
-./minis2i testapp builder testapp-img
-./minis2i testapp builder testapp-img  # incremental
+./minis2i --env=VAR=hello testapp builder testapp-img
+./minis2i --env=VAR=hello testapp builder testapp-img  # incremental
 ```
 
 ```console
 $ docker build -t builder ./builder --quiet
-sha256:ff83357c129cbc63cd89d9cf48357c55fa0f739f53aa6874c385ac30a401b2ac
+sha256:fd31c40b6e5c6543f771ab4466fa5168dc2bc1c98c5e97247ea9be5aa2dd77a8
 $ docker rmi testapp-img >& /dev/null  # ensure non-incremental
-$ ./minis2i testapp builder testapp-img
+$ ./minis2i --env=VAR=hello testapp builder testapp-img
++ echo hello
+hello
 + '[' -e /tmp/artifacts/output.txt ']'
 + cp /tmp/src/input.txt output.txt
-sha256:73d4119c6c27216c37dc6000cecf483fd2f9cfb69396e2517fbeb3afb241f345
-e2b6345b6b04b899b5fa4d10b59d1511fc624b90935636bf0489994b277ea2ae
-$ ./minis2i testapp builder testapp-img  # incremental
-+ exec tar cf - output.txt
+sha256:69d66828d4b5037e11585dd7e7d9b67ab70ab1f08d669819f0583c74e2eeb0b5
+ad29512642eb425767247c23399325ba3d4d866e60b72b600abd5707a5f0fa9b
+$ ./minis2i --env=VAR=hello testapp builder testapp-img  # incremental
++ cp output.txt /tmp/artifacts
++ echo hello
+hello
 + '[' -e /tmp/artifacts/output.txt ']'
 + cp /tmp/artifacts/output.txt .
-sha256:ab59665865a6203cea93ba88ef08168d529d467d4059f9470c42441c6fffe74d
-1d00d6b26043f468a3f82b7fdcb91285359c4464a82327f3bace8095147cbccd
+sha256:a57473c66941ec43dc24c1502cebc3ced976578600a5d3d722f8e4db390b5bb6
+4168962cbcebbdd6015b3aa6a9612c9398b5d88ad0bb2a264b297495b0492f53
 ```
 
 [s2i]: https://github.com/openshift/source-to-image
